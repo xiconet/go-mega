@@ -275,6 +275,8 @@ func getChunkSizes(size int64) (chunks []chunkSize) {
 	return chunks
 }
 
+var attrMatch = regexp.MustCompile(`{".*"}`)
+
 func decryptAttr(key []byte, data []byte) (attr FileAttr, err error) {
 	err = EBADATTR
 	block, err := aes.NewCipher(key)
@@ -285,10 +287,13 @@ func decryptAttr(key []byte, data []byte) (attr FileAttr, err error) {
 	mode := cipher.NewCBCDecrypter(block, iv)
 	buf := make([]byte, len(data))
 	mode.CryptBlocks(buf, base64urldecode([]byte(data)))
-	r, _ := regexp.Compile(`{".*"}`)
+
 	if string(buf[:4]) == "MEGA" {
 		str := strings.TrimRight(string(buf[4:]), "\x00")
-		str = r.FindString(str)
+		trimmed := attrMatch.FindString(str)
+		if trimmed != "" {
+			str = trimmed
+		}
 		err = json.Unmarshal([]byte(str), &attr)
 	}
 	return attr, err
